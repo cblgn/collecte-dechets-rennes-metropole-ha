@@ -1,10 +1,12 @@
 # Collecte Déchets Rennes Métropole
 
 [![HACS](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz/docs/faq/custom_repositories)
-[![Validate](https://github.com/phnogues/collecte-dechets-rennes-metropole-ha/actions/workflows/validate.yml/badge.svg)](https://github.com/phnogues/collecte-dechets-rennes-metropole-ha/actions/workflows/validate.yml)
-[![Tests](https://github.com/phnogues/collecte-dechets-rennes-metropole-ha/actions/workflows/tests.yml/badge.svg)](https://github.com/phnogues/collecte-dechets-rennes-metropole-ha/actions/workflows/tests.yml)
+[![Validate](https://github.com/cblgn/collecte-dechets-rennes-metropole-ha/actions/workflows/validate.yml/badge.svg)](https://github.com/cblgn/collecte-dechets-rennes-metropole-ha/actions/workflows/validate.yml)
+[![Tests](https://github.com/cblgn/collecte-dechets-rennes-metropole-ha/actions/workflows/tests.yml/badge.svg)](https://github.com/cblgn/collecte-dechets-rennes-metropole-ha/actions/workflows/tests.yml)
 
 Intégration Home Assistant qui affiche les jours de collecte des **ordures ménagères (bac gris)** et des **déchets recyclables (bac jaune)** pour les 43 communes de Rennes Métropole et les quartiers de Rennes.
+
+> Fork de [phnogues/collecte-dechets-rennes-metropole-ha](https://github.com/phnogues/collecte-dechets-rennes-metropole-ha), avec une vérification hebdomadaire automatique des PDF sources (voir plus bas).
 
 Les données proviennent des calendriers PDF publiés chaque année par la métropole sur [dechets.metropole.rennes.fr](https://dechets.metropole.rennes.fr/ou-et-comment-jeter-vos-dechets/). Un script les convertit en un fichier `data/collectes.json`, que l'intégration télécharge.
 
@@ -16,9 +18,9 @@ https://github.com/user-attachments/assets/3e69c0be-e278-4a1d-b720-ef1f48512f86
 
 ## Installation (HACS)
 
-[![Ouvrir dans HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=phnogues&repository=collecte-dechets-rennes-metropole-ha&category=integration)
+[![Ouvrir dans HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=cblgn&repository=collecte-dechets-rennes-metropole-ha&category=integration)
 
-1. HACS → menu ⋮ → *Dépôts personnalisés* → ajouter `https://github.com/phnogues/collecte-dechets-rennes-metropole-ha`, catégorie *Intégration* (ou cliquer sur le bouton ci-dessus).
+1. HACS → menu ⋮ → *Dépôts personnalisés* → ajouter `https://github.com/cblgn/collecte-dechets-rennes-metropole-ha`, catégorie *Intégration* (ou cliquer sur le bouton ci-dessus).
 2. Installer « Collecte Déchets Rennes Métropole », puis redémarrer Home Assistant.
 3. *Paramètres → Appareils et services → Ajouter une intégration* → « Collecte Déchets Rennes Métropole ».
 4. Choisir sa commune (ou son quartier à Rennes) dans la liste.
@@ -81,6 +83,16 @@ pip install -r tools/requirements.txt
 3. Relire `data/rapport.md`, puis publier `data/collectes.json` (commit + push). Pas besoin de nouvelle version de l'intégration.
 
 Le script peut être relancé à volonté. Il traite **toutes** les saisons présentes dans `sources/`, ce qui permet de publier la nouvelle saison avant le 1er octobre sans perdre les dates de fin septembre. Les zones sont identifiées par commune (ou numéro de quartier pour Rennes) : une configuration existante reste valable d'une année sur l'autre, même si les regroupements de communes changent.
+
+### Vérification hebdomadaire des sources
+
+Le workflow `.github/workflows/sources.yml` tourne chaque lundi. Il lance `tools/check_sources.py`, qui télécharge chaque PDF publié et compare son sha256 au manifeste `sources/<saison>/manifest.json`. La saison est lue dans le PDF lui-même, donc les calendriers de septembre arrivent tout seuls dans le bon dossier. Si un PDF est nouveau ou modifié, le workflow régénère `data/` et ouvre une PR `auto/sources`, avec le résumé des changements et le rapport de contrôle. Il ne reste qu'à relire et fusionner.
+
+```bash
+python tools/check_sources.py --dry-run   # même vérification, en local, sans rien écrire
+```
+
+Prérequis côté GitHub : *Settings → Actions → General → Allow GitHub Actions to create and approve pull requests*.
 
 ### Fonctionnement du script
 

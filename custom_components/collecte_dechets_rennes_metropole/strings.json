@@ -72,6 +72,16 @@
     "data_outdated": {
       "title": "Calendrier de collecte périmé ({zone})",
       "description": "Le calendrier des collectes pour {zone} n'a plus de dates à venir (valable jusqu'au {valid_until}). Publiez le nouveau fichier collectes.json à l'adresse {url}, ou modifiez l'URL dans les options de l'intégration."
+    },
+    "zone_missing": {
+      "title": "Zone introuvable ({zone})",
+      "description": "La zone {zone} n'existe plus dans le fichier de données {url}. Le dernier calendrier connu reste utilisé. Supprimez cette entrée et ajoutez à nouveau votre commune ou votre quartier."
     }
+  },
+  "common": {
+    "event_summary": "Collecte {bins}",
+    "bin_ordures_menageres": "bac gris",
+    "bin_recyclables": "bac jaune",
+    "event_description": "{waste_types}. Sortir le bac la veille au soir (passage dès {start})."
   }
 }

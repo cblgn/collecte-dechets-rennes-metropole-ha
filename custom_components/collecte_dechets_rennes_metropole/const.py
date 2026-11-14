@@ -10,7 +10,7 @@ CONF_REMINDER_TIME = "reminder_time"
 
 # Modifiable dans les options de l'intégration.
 DEFAULT_DATA_URL = (
-    "https://raw.githubusercontent.com/phnogues/collecte-dechets-rennes-metropole-ha/main/data/collectes.json"
+    "https://raw.githubusercontent.com/cblgn/collecte-dechets-rennes-metropole-ha/main/data/collectes.json"
 )
 DEFAULT_REMINDER_TIME = "18:00:00"
 

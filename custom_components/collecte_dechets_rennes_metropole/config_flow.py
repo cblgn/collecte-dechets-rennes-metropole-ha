@@ -97,17 +97,12 @@ class CollecteOptionsFlow(OptionsFlow):
         errors: dict[str, str] = {}
         zone = self.config_entry.data[CONF_ZONE]
         if user_input is not None:
-            try:
-                zones = list_zones(await async_fetch_data(self.hass, user_input[CONF_DATA_URL]))
-            except CannotFetchError:
-                errors["base"] = "cannot_connect"
-            except InvalidDataError:
-                errors["base"] = "invalid_data"
-            else:
-                if zone not in zones:
-                    errors["base"] = "zone_missing"
-                else:
-                    return self.async_create_entry(data=user_input)
+            current_url = self.config_entry.options.get(CONF_DATA_URL, DEFAULT_DATA_URL)
+            # On ne revalide l'URL que si elle change : changer l'heure du rappel doit marcher hors ligne.
+            if user_input[CONF_DATA_URL] != current_url:
+                errors = await self._async_validate_url(user_input[CONF_DATA_URL], zone)
+            if not errors:
+                return self.async_create_entry(data=user_input)
 
         options = {**self.config_entry.options, **(user_input or {})}
         schema = vol.Schema(
@@ -117,3 +112,12 @@ class CollecteOptionsFlow(OptionsFlow):
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema, errors=errors)
+
+    async def _async_validate_url(self, url: str, zone: str) -> dict[str, str]:
+        try:
+            zones = list_zones(await async_fetch_data(self.hass, url))
+        except CannotFetchError:
+            return {"base": "cannot_connect"}
+        except InvalidDataError:
+            return {"base": "invalid_data"}
+        return {} if zone in zones else {"base": "zone_missing"}

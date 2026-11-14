@@ -153,3 +153,75 @@ async def test_options_flow(paris) -> None:
     assert result["type"] is FlowResultType.CREATE_ENTRY
     await hass.async_block_till_done()
     assert entry.options[CONF_REMINDER_TIME] == "20:30:00"
+
+
+async def test_options_reminder_only_works_offline(paris) -> None:
+    """Changer seulement l'heure du rappel ne doit pas dépendre du réseau."""
+    hass = paris
+    entry = _entry()
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    from custom_components.collecte_dechets_rennes_metropole.api import CannotFetchError
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    with patch(f"{FLOW_MODULE}.async_fetch_data", side_effect=CannotFetchError("hors ligne")) as fetch:
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], {CONF_REMINDER_TIME: "19:00:00", CONF_DATA_URL: DATA_FILE}
+        )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    fetch.assert_not_called()
+
+
+async def test_calendar_texts_translated(paris, freezer) -> None:
+    hass = paris
+    freezer.move_to("2026-10-05 10:00:00+00:00")
+    hass.config.language = "fr"
+    entry = _entry()
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    calendar = _entity_id(hass, entry, "calendar", "calendar")
+    events = await hass.services.async_call(
+        "calendar",
+        "get_events",
+        {"entity_id": calendar, "start_date_time": "2026-10-06 00:00:00", "end_date_time": "2026-10-07 00:00:00"},
+        blocking=True,
+        return_response=True,
+    )
+    event = events[calendar]["events"][0]
+    assert event["summary"] == "Collecte bac gris"
+    assert event["description"] == "Ordures ménagères. Sortir le bac la veille au soir (passage dès 05:30)."
+
+
+async def test_zone_missing_issue_and_small_cache(paris, freezer, tmp_path) -> None:
+    import json
+
+    hass = paris
+    freezer.move_to("2026-10-05 10:00:00+00:00")
+    entry = _entry()
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    coordinator = entry.runtime_data
+
+    # Le cache ne garde que la zone configurée
+    assert list(coordinator._cached["zones"]) == ["acigne"]
+
+    raw = json.loads(open(DATA_FILE, encoding="utf-8").read())
+    del raw["zones"]["acigne"]
+    other = tmp_path / "collectes.json"
+    other.write_text(json.dumps(raw), encoding="utf-8")
+    coordinator.url = str(other)
+    await coordinator.async_refresh()
+
+    issue_id = f"zone_missing_{entry.entry_id}"
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+    assert coordinator.last_update_success
+    assert coordinator.data.zone_id == "acigne"  # dernier calendrier connu
+
+    coordinator.url = DATA_FILE
+    await coordinator.async_refresh()
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None

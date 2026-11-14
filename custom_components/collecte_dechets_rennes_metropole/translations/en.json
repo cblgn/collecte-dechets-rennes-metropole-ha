@@ -72,6 +72,16 @@
     "data_outdated": {
       "title": "Outdated collection calendar ({zone})",
       "description": "The collection calendar for {zone} has no upcoming dates (valid until {valid_until}). Publish the new collectes.json file at {url}, or change the URL in the integration options."
+    },
+    "zone_missing": {
+      "title": "Area not found ({zone})",
+      "description": "The area {zone} no longer exists in the data file {url}. The last known calendar is still used. Remove this entry and add your town or district again."
     }
+  },
+  "common": {
+    "event_summary": "Collection: {bins}",
+    "bin_ordures_menageres": "household waste bin",
+    "bin_recyclables": "recycling bin",
+    "event_description": "{waste_types}. Put the bin out the evening before (collection from {start})."
   }
 }

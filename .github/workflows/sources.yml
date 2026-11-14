@@ -1,0 +1,59 @@
+# Chaque semaine : compare les PDF publiés par la métropole (sha256) à sources/.
+# Si un calendrier est nouveau ou modifié, régénère data/ et ouvre (ou met à jour) une PR à relire.
+#
+# Prérequis : Settings → Actions → General → « Allow GitHub Actions to create and approve pull requests ».
+# Les PR créées avec GITHUB_TOKEN ne déclenchent pas les autres workflows : fermer/rouvrir la PR
+# pour lancer les tests.
+name: Sources
+
+on:
+  schedule:
+    - cron: "0 5 * * 1" # lundi 5h UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: tools/requirements.txt
+      - name: Dépendances
+        run: pip install -r tools/requirements.txt
+
+      - name: Vérification des PDF
+        id: check
+        run: |
+          set +e
+          python tools/check_sources.py --report build/sources.md
+          code=$?
+          cat build/sources.md >> "$GITHUB_STEP_SUMMARY"
+          # 0 = inchangé, 10 = changements, autre = erreur
+          [ "$code" -eq 0 ] || [ "$code" -eq 10 ]
+
+      - name: Régénération des données
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          python tools/build_calendar.py
+          { cat build/sources.md; echo; echo "---"; echo; cat data/rapport.md; } > build/pr.md
+
+      - name: Pull request
+        if: steps.check.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: auto/sources
+          delete-branch: true
+          add-paths: |
+            sources/**
+            data/**
+          commit-message: "Calendriers : mise à jour des PDF sources"
+          title: "Calendriers : PDF nouveaux ou modifiés"
+          body-path: build/pr.md
+          labels: calendrier

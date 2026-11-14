@@ -39,6 +39,15 @@ def calendar_links(page: str) -> dict[str, str]:
     return links
 
 
+def pdf_url(viewer_url: str) -> str:
+    """URL du PDF d'origine affiché par une liseuse Heyzine."""
+    viewer = fetch(viewer_url).decode("utf-8", "ignore")
+    m = re.search(r"https://cdn\w*\.heyzine\.com/files/uploaded/[0-9a-f-]+\.pdf", viewer)
+    if not m:
+        raise ValueError(f"PDF introuvable dans la liseuse {viewer_url}")
+    return m.group(0)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("season", help="saison, ex. 2027-2028")
@@ -54,13 +63,13 @@ def main() -> int:
         return 1
 
     for url, label in links.items():
-        viewer = fetch(url).decode("utf-8", "ignore")
-        m = re.search(r"https://cdn\w*\.heyzine\.com/files/uploaded/[0-9a-f-]+\.pdf", viewer)
-        if not m:
-            print(f"PDF introuvable pour {label} ({url})", file=sys.stderr)
+        try:
+            pdf = pdf_url(url)
+        except ValueError as err:
+            print(f"{err} pour {label}", file=sys.stderr)
             continue
         target = out / (url.rsplit("/", 1)[1].removesuffix(".html") + ".pdf")
-        target.write_bytes(fetch(m.group(0)))
+        target.write_bytes(fetch(pdf))
         print(f"{target.name}  {label}")
     print(f"\n{len(links)} calendriers dans {out}. Lancez ensuite : python tools/build_calendar.py")
     return 0

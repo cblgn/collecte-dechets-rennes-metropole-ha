@@ -1,10 +1,11 @@
 # CLAUDE.md
 
-Intégration Home Assistant (HACS) qui expose les jours de collecte des déchets de Rennes Métropole. Dépôt public : https://github.com/phnogues/collecte-dechets-rennes-metropole-ha. Le README décrit l'usage ; ce fichier liste ce qu'il faut savoir pour modifier le projet.
+Intégration Home Assistant (HACS) qui expose les jours de collecte des déchets de Rennes Métropole. Dépôt public : https://github.com/cblgn/collecte-dechets-rennes-metropole-ha. Le README décrit l'usage ; ce fichier liste ce qu'il faut savoir pour modifier le projet.
 
 ## Organisation
 
 - `custom_components/collecte_dechets_rennes_metropole/` : l'intégration (domaine `collecte_dechets_rennes_metropole`). La logique de calendrier pure est dans `schedule.py`, sans dépendance à Home Assistant ; le reste est la couche HA (config flow, coordinator, entités).
+- `tools/check_sources.py` : vérification hebdomadaire (workflow `sources.yml`) des PDF publiés contre `sources/<saison>/manifest.json` (sha256) ; écrit les PDF nouveaux ou modifiés.
 - `tools/build_calendar.py` : convertit les PDF de `sources/<saison>/` en `data/collectes.json` + `data/rapport.md`.
 - `data/collectes.json` : téléchargé par les installations depuis `raw.githubusercontent.com/.../main/data/collectes.json` (`DEFAULT_DATA_URL` dans `const.py`). Le pousser sur `main` suffit à mettre à jour tous les utilisateurs : renommer le dépôt, la branche ou ce fichier casse les installations existantes.
 - `tools/video/` : génération locale de la vidéo de démo, volontairement hors git (`.gitignore`).
