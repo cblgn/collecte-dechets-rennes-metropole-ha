@@ -101,3 +101,40 @@ def test_published_file_is_valid():
     assert len(zones) == 53
     for zone_id in zones:
         assert schedule.parse_schedule(data, zone_id).next_collection(date(2026, 10, 1)) is not None
+
+
+def _zone(days_by_waste: dict) -> "schedule.ZoneSchedule":
+    return schedule.ZoneSchedule(
+        "z", "Z", {w: sorted(d) for w, d in days_by_waste.items()}, {}, time(5, 30), None
+    )
+
+
+def _every(start: date, step: int, n: int) -> list[date]:
+    from datetime import timedelta
+
+    return [start + timedelta(days=step * i) for i in range(n)]
+
+
+def test_plausible_accepts_real_rhythm() -> None:
+    new = _zone({"om": _every(date(2026, 10, 6), 14, 26), "rec": _every(date(2026, 10, 9), 14, 26)})
+    schedule.check_plausible(new, new, date(2026, 10, 1))
+
+
+@pytest.mark.parametrize(
+    ("days", "message"),
+    [
+        ([], "aucune date"),
+        (_every(date(2026, 10, 1), 1, 30), "moins de"),
+        ([date(2026, 10, 6), date(2027, 3, 1)], "sans collecte"),
+    ],
+)
+def test_plausible_rejects_absurd_dates(days, message) -> None:
+    with pytest.raises(schedule.ImplausibleDataError, match=message):
+        schedule.check_plausible(_zone({"om": days}), None, date(2026, 10, 1))
+
+
+def test_plausible_rejects_big_drop() -> None:
+    old = _zone({"om": _every(date(2026, 10, 6), 14, 26)})
+    new = _zone({"om": _every(date(2027, 1, 5), 14, 10)})  # plus rien avant janvier
+    with pytest.raises(schedule.ImplausibleDataError, match="60 prochains jours"):
+        schedule.check_plausible(new, old, date(2026, 10, 1))

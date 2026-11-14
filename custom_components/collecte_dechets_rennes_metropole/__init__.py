@@ -8,7 +8,7 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.storage import Store
 
 from .const import DOMAIN
-from .coordinator import STORAGE_VERSION, CollecteConfigEntry, CollecteCoordinator, outdated_issue_id, zone_missing_issue_id
+from .coordinator import STORAGE_VERSION, CollecteConfigEntry, CollecteCoordinator, outdated_issue_id, rejected_issue_id, zone_missing_issue_id
 
 PLATFORMS = [Platform.BINARY_SENSOR, Platform.CALENDAR, Platform.SENSOR]
 
@@ -31,6 +31,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: CollecteConfigEntry) ->
     await Store(hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}").async_remove()
     ir.async_delete_issue(hass, DOMAIN, outdated_issue_id(entry.entry_id))
     ir.async_delete_issue(hass, DOMAIN, zone_missing_issue_id(entry.entry_id))
+    ir.async_delete_issue(hass, DOMAIN, rejected_issue_id(entry.entry_id))
 
 
 async def _async_reload_entry(hass: HomeAssistant, entry: CollecteConfigEntry) -> None:

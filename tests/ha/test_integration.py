@@ -225,3 +225,31 @@ async def test_zone_missing_issue_and_small_cache(paris, freezer, tmp_path) -> N
     coordinator.url = DATA_FILE
     await coordinator.async_refresh()
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+
+
+async def test_implausible_update_rejected(paris, freezer, tmp_path) -> None:
+    import json
+
+    hass = paris
+    freezer.move_to("2026-10-05 10:00:00+00:00")
+    entry = _entry()
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    coordinator = entry.runtime_data
+    issue_id = f"data_rejected_{entry.entry_id}"
+
+    # Fichier tronqué : il ne reste que 3 zones sur 53
+    raw = json.loads(open(DATA_FILE, encoding="utf-8").read())
+    raw["zones"] = {k: v for k, v in raw["zones"].items() if k in ("acigne", "betton", "bruz")}
+    bad = tmp_path / "collectes.json"
+    bad.write_text(json.dumps(raw), encoding="utf-8")
+    coordinator.url = str(bad)
+    await coordinator.async_refresh()
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+    assert coordinator.last_update_success
+    assert coordinator._cached["zone_count"] == 53  # le cache n'a pas été écrasé
+
+    coordinator.url = DATA_FILE
+    await coordinator.async_refresh()
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None

@@ -76,6 +76,10 @@
     "zone_missing": {
       "title": "Zone introuvable ({zone})",
       "description": "La zone {zone} n'existe plus dans le fichier de données {url}. Le dernier calendrier connu reste utilisé. Supprimez cette entrée et ajoutez à nouveau votre commune ou votre quartier."
+    },
+    "data_rejected": {
+      "title": "Mise à jour du calendrier refusée ({zone})",
+      "description": "Le fichier de données {url} a été refusé car son contenu n'est pas crédible : {reason}. Le dernier calendrier connu reste utilisé. Si ce changement est normal, vérifiez le fichier publié."
     }
   },
   "common": {

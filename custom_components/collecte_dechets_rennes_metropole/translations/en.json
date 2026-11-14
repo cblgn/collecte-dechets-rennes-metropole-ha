@@ -76,6 +76,10 @@
     "zone_missing": {
       "title": "Area not found ({zone})",
       "description": "The area {zone} no longer exists in the data file {url}. The last known calendar is still used. Remove this entry and add your town or district again."
+    },
+    "data_rejected": {
+      "title": "Calendar update rejected ({zone})",
+      "description": "The data file {url} was rejected because its content is not plausible: {reason}. The last known calendar is still used. If this change is expected, check the published file."
     }
   },
   "common": {

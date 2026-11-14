@@ -13,7 +13,7 @@ from homeassistant.util import dt as dt_util
 
 from .api import CannotFetchError, async_fetch_data
 from .const import CONF_DATA_URL, CONF_ZONE, DEFAULT_DATA_URL, DOMAIN, UPDATE_INTERVAL
-from .schedule import InvalidDataError, ZoneSchedule, parse_schedule
+from .schedule import ImplausibleDataError, InvalidDataError, ZoneSchedule, check_plausible, parse_schedule
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -30,9 +30,13 @@ def zone_missing_issue_id(entry_id: str) -> str:
     return f"zone_missing_{entry_id}"
 
 
+def rejected_issue_id(entry_id: str) -> str:
+    return f"data_rejected_{entry_id}"
+
+
 def zone_subset(raw: dict, zone_id: str) -> dict:
     """Ne garde du JSON que ce qui sert à la zone (le fichier complet couvre toutes les zones)."""
-    return {**raw, "zones": {zone_id: raw["zones"][zone_id]}}
+    return {**raw, "zones": {zone_id: raw["zones"][zone_id]}, "zone_count": len(raw["zones"])}
 
 
 class CollecteCoordinator(DataUpdateCoordinator[ZoneSchedule]):
@@ -59,13 +63,33 @@ class CollecteCoordinator(DataUpdateCoordinator[ZoneSchedule]):
             raw = await async_fetch_data(self.hass, self.url)
             self._update_zone_missing_issue(self.zone_id in raw.get("zones", {}))
             schedule = parse_schedule(raw, self.zone_id)
+            await self._async_check_plausible(raw, schedule)
+        except ImplausibleDataError as err:
+            self._update_rejected_issue(err)
+            schedule = await self._async_load_cache(err)
         except (CannotFetchError, InvalidDataError) as err:
             schedule = await self._async_load_cache(err)
         else:
+            self._update_rejected_issue(None)
             await self._async_save_cache(zone_subset(raw, self.zone_id))
 
         self._update_outdated_issue(schedule)
         return schedule
+
+    async def _async_check_plausible(self, raw: dict, schedule: ZoneSchedule) -> None:
+        """Compare la nouvelle version au dernier calendrier accepté."""
+        cached = await self._async_get_cache()
+        old: ZoneSchedule | None = None
+        if cached is not None:
+            if len(raw["zones"]) < cached.get("zone_count", 0) / 2:
+                raise ImplausibleDataError(
+                    f"nombre de zones passé de {cached['zone_count']} à {len(raw['zones'])}"
+                )
+            try:
+                old = parse_schedule(cached, self.zone_id)
+            except InvalidDataError:
+                old = None
+        check_plausible(schedule, old, dt_util.now().date())
 
     async def _async_get_cache(self) -> dict | None:
         if not self._cache_loaded:
@@ -89,6 +113,21 @@ class CollecteCoordinator(DataUpdateCoordinator[ZoneSchedule]):
             raise UpdateFailed(f"Données indisponibles et cache invalide : {cache_err}") from err
         _LOGGER.warning("Impossible de mettre à jour les collectes (%s), utilisation du cache local", err)
         return schedule
+
+    def _update_rejected_issue(self, err: Exception | None) -> None:
+        issue_id = rejected_issue_id(self.config_entry.entry_id)
+        if err is None:
+            ir.async_delete_issue(self.hass, DOMAIN, issue_id)
+            return
+        ir.async_create_issue(
+            self.hass,
+            DOMAIN,
+            issue_id,
+            is_fixable=False,
+            severity=ir.IssueSeverity.WARNING,
+            translation_key="data_rejected",
+            translation_placeholders={"zone": self.config_entry.title, "reason": str(err), "url": self.url},
+        )
 
     def _update_zone_missing_issue(self, present: bool) -> None:
         issue_id = zone_missing_issue_id(self.config_entry.entry_id)

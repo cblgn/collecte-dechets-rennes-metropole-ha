@@ -1,0 +1,11 @@
+# Met à jour les Actions utilisées par les workflows (une PR par nouvelle version).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+  - package-ecosystem: pip
+    directory: /tools
+    schedule:
+      interval: monthly

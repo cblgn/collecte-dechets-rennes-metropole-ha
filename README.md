@@ -64,6 +64,8 @@ automation:
 
 Si le calendrier n'a plus de dates à venir (après le 30 septembre sans nouveau fichier), une alerte apparaît dans *Paramètres → Réparations*. Si le fichier est injoignable, l'intégration utilise la dernière version téléchargée.
 
+Un nouveau fichier n'est accepté que s'il est crédible : écart entre deux collectes de 2 à 35 jours, pas plus de la moitié des zones ou des collectes des 60 prochains jours qui disparaissent. Sinon, l'intégration garde le dernier calendrier accepté et l'explique dans *Réparations* (de même si votre zone disparaît du fichier).
+
 ## Mise à jour annuelle des données
 
 Les nouveaux calendriers (octobre → septembre) sont publiés en septembre.

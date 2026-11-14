@@ -113,3 +113,35 @@ def list_zones(raw: dict) -> dict[str, str]:
         raise
     except (KeyError, TypeError, AttributeError) as err:
         raise InvalidDataError(f"données invalides : {err!r}") from err
+
+
+# Garde-fous contre un fichier de données cassé ou malveillant : en cas d'échec,
+# l'intégration garde le dernier calendrier connu. Écarts réels observés : 6 à 21 jours.
+MIN_GAP_DAYS = 2
+MAX_GAP_DAYS = 35
+LOOKAHEAD_DAYS = 60
+
+
+class ImplausibleDataError(InvalidDataError):
+    """Le fichier est bien formé mais son contenu n'est pas crédible."""
+
+
+def check_plausible(new: ZoneSchedule, old: ZoneSchedule | None, today: date) -> None:
+    """Lève ImplausibleDataError si le nouveau calendrier n'est pas crédible."""
+    for waste, days in new.collections.items():
+        if not days:
+            raise ImplausibleDataError(f"aucune date pour {waste}")
+        gaps = [(b - a).days for a, b in zip(days, days[1:])]
+        if gaps and min(gaps) < MIN_GAP_DAYS:
+            raise ImplausibleDataError(f"{waste} : collectes à moins de {MIN_GAP_DAYS} jours d'intervalle")
+        if gaps and max(gaps) > MAX_GAP_DAYS:
+            raise ImplausibleDataError(f"{waste} : plus de {MAX_GAP_DAYS} jours sans collecte")
+    if old is None:
+        return
+    end = today + timedelta(days=LOOKAHEAD_DAYS)
+    before = len(old.collections_between(today, end))
+    after = len(new.collections_between(today, end))
+    if after < before / 2:
+        raise ImplausibleDataError(
+            f"collectes des {LOOKAHEAD_DAYS} prochains jours passées de {before} à {after}"
+        )
